@@ -1,0 +1,15 @@
+html, body {
+    height: 100%; 
+    margin: 0;
+}
+#map {
+    height: 80%; 
+}
+.buttons {
+    margin-top: 20px;
+    text-align: center;
+}
+.buttons ons-button {
+    width: 130px;
+    margin: 5px;
+}

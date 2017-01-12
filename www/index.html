@@ -1,0 +1,116 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta http-equiv="Content-Security-Policy" content="default-src * data:; style-src * 'unsafe-inline'; script-src * 'unsafe-inline' 'unsafe-eval'">
+    <script src="components/loader.js"></script>
+    <link rel="stylesheet" href="components/loader.css">
+    <link rel="stylesheet" href="css/style.css">
+    <!-- JavaScriptマップAPIを読み込む -->
+    <script type="text/javascript" src="http://js.api.olp.yahooapis.jp/OpenLocalPlatform/V1/jsapi?appid=アプリケーションID"></script>
+    <script type="text/javascript">
+    var ymap;   // 地図オブジェクト
+    var currentLat;    // 現在値の緯度
+    var currentLon;    // 現在値の経度
+    var labels = [];   // 全件分のラベル
+    
+    // Nifty Cloud Mobile Backendの接続準備
+    var ncmb = new NCMB("アプリケーションキー","クライアントキー");
+    var Store = ncmb.DataStore("LocationData");   
+        
+    // 地図を表示する処理
+    function showMap(){
+        // 地図の生成
+        ymap = new Y.Map('map');
+        // 位置情報の作成
+        var latlng = new Y.LatLng(currentLat, currentLon);
+        // 中心の位置情報を指定して地図を描画する
+        ymap.drawMap(latlng, 17);
+        // 地図上に表示するラベルの設定
+        // var label = new Y.Label(latlng, "現在地");
+        // ラベルを描画
+        // ymap.addFeature(label);
+        // 各ユーザーの位置情報を表示
+        fetch();
+  	}
+    
+    // Cordovaの準備ができたとき
+    document.addEventListener('deviceready', function() {
+        // 現在地情報を取得する
+    	navigator.geolocation.getCurrentPosition(
+            function(position) {
+                // 成功時の処理
+                currentLat = position.coords.latitude;
+                currentLon = position.coords.longitude;
+                showMap();
+        	}, 
+            function(error) {
+                // 失敗時の処理
+                alert(error.message);
+            }
+        );
+    });
+    
+    // 登録
+    function add() {
+        // ユーザの表示名を入力させる
+        var userName = prompt("名前を入力してください");
+        
+        // STEP1 名前が入力されたら、登録実行        
+        if(userName) {
+            // 現在地の位置情報オブジェクトを作成
+            var currentPosition = new ncmb.GeoPoint(currentLat, currentLon);            
+            // 登録実行
+            new Store()
+            .set("position", currentPosition)
+            .set("name", userName)
+            .save(function () {
+                alert("登録が完了しました");
+                fetch();
+            }, function (err) {
+                alert("登録に失敗しました");
+            });
+        }
+    }
+    
+    // 検索
+    function fetch() {
+        // 地図上のラベルをすべて消す
+        for (var i = 0; i < labels.length; i++) {
+            ymap.removeFeature(labels[i]);
+        }
+        labels = [];
+        
+        // 現在地の位置情報オブジェクトを作成
+        var currentPosition = new ncmb.GeoPoint(currentLat, currentLon);
+        
+        // STEP2 半径500m以内にいるユーザーを検索
+        Store
+        .withinKilometers("position", currentPosition, 0.5)
+        .fetchAll()
+        .then(function (result) {
+            for (var i = 0; i < result.length; i++) {
+                // ラベルの描画
+                var latitude = result[i].position.latitude;
+                var longitude = result[i].position.longitude;
+                var latlng = new Y.LatLng(latitude, longitude);
+                labels[i] = new Y.Label(latlng, result[i].name);
+                ymap.addFeature(labels[i]);
+            }
+        }, function (err) { 
+            alert("更新に失敗しました")
+        });
+    }
+
+    </script>
+
+</head>
+<body>
+	<div id="map"></div>
+    <div class="buttons">
+        <ons-button onclick="add()">登録</ons-button>
+        <ons-button onclick="fetch()">更新</ons-button>
+    </div>
+</body>
+</html>
